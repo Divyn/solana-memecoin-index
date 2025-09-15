@@ -41,7 +41,7 @@ def display_risk_analysis_results(volume_profile, volatility_profile):
     for i, token in enumerate(volume_profile['top_tokens'], 1):
         mint_short = token['mint_address'][:8] + "..." + token['mint_address'][-8:] if len(token['mint_address']) > 20 else token['mint_address']
         print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {mint_short:<44} "
-              f"{token['volume']:<15.0f} {token['volatility']:<12.2f} {token['volume_weight']:<8.2f}%")
+              f"{token['volume']:<15.0f} {token['price_volatility']:<12.2f} {token['volume_weight']:<8.2f}%")
     
     print("\nMEMECOIN 50 VOLATILITY INDEX - Top 10 by Volatility:")
     print(f"{'Rank':<4} {'Symbol':<12} {'Name':<20} {'Mint Address':<44} {'Volume':<15} {'Volatility':<12} {'Weight':<8}")
@@ -49,7 +49,7 @@ def display_risk_analysis_results(volume_profile, volatility_profile):
     for i, token in enumerate(volatility_profile['top_tokens'], 1):
         mint_short = token['mint_address'][:8] + "..." + token['mint_address'][-8:] if len(token['mint_address']) > 20 else token['mint_address']
         print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {mint_short:<44} "
-              f"{token['volume']:<15.0f} {token['volatility']:<12.2f} {token['volume_weight']:<8.2f}%")
+              f"{token['volume']:<15.0f} {token['price_volatility']:<12.2f} {token['volume_weight']:<8.2f}%")
     
     # Display index construction details
     print("\n" + "="*100)
