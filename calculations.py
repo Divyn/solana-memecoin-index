@@ -14,12 +14,13 @@ class MemeCoinRiskAnalyzer:
         self.data = None
         self.processed_data = None
     
-    def load_bitquery_data(self, data: Dict) -> None:
+    def load_bitquery_data(self, data: Dict, market_cap_data: Dict = None) -> None:
         """
         Load and preprocess Bitquery API response data.
         
         Args:
             data: Dictionary containing the API response from Bitquery
+            market_cap_data: Dictionary containing market cap data for tokens (mint_address -> market_cap_usd)
         """
         if 'Solana' not in data or 'DEXTradeByTokens' not in data['Solana']:
             raise ValueError("Invalid data format. Expected Solana.DEXTradeByTokens structure.")
@@ -33,15 +34,20 @@ class MemeCoinRiskAnalyzer:
             # Get volume and volatility from the top level, not from Trade
             volume = float(trade.get('volume', 0))
             volatility = float(trade.get('volatility_token', 0))
+            mint_address = trade_data['Currency']['MintAddress']
+            
+            # Get market cap data if available
+            market_cap = market_cap_data.get(mint_address, 0) if market_cap_data else 0
             
             processed_trades.append({
-                'mint_address': trade_data['Currency']['MintAddress'],
+                'mint_address': mint_address,
                 'name': trade_data['Currency']['Name'],
                 'symbol': trade_data['Currency']['Symbol'],
                 'side_currency': trade_data['Side']['Currency']['Symbol'],
                 'side_mint': trade_data['Side']['Currency']['MintAddress'],
                 'volume': volume,
                 'volatility': volatility,
+                'market_cap': market_cap,
                 'high': float(trade_data.get('high', 0)),
                 'low': float(trade_data.get('low', 0)),
                 'open': float(trade_data.get('open', 0)),
@@ -56,6 +62,10 @@ class MemeCoinRiskAnalyzer:
         """
         Calculate turnover rate for the given period.
         
+        Note: Volume from Bitquery is in token units, not dollar units.
+        We calculate dollar volume by multiplying token volume by price.
+        Market cap data comes directly from Bitquery TokenSupplyUpdates.
+        
         Args:
             period_days: Number of days to calculate turnover for
             
@@ -65,29 +75,43 @@ class MemeCoinRiskAnalyzer:
         if self.data is None:
             raise ValueError("No data loaded. Call load_bitquery_data() first.")
         
-        # Calculate total volume traded
-        total_volume = self.data['volume'].sum()
+        if len(self.data) == 0:
+            return 0.0
         
-        # Calculate market cap proxy using price and volume
-        # For memecoins, we'll use a simplified approach
-        if len(self.data) > 0 and total_volume > 0:
-            # Use the average of high prices as a proxy for market cap
-            avg_price = self.data['high'].mean()
+        # Calculate dollar volume: token_volume * price_per_token
+        # Use close price as the most recent price for each token
+        dollar_volumes = []
+        market_caps = []
+        
+        for _, row in self.data.iterrows():
+            token_volume = row['volume']  # Token units
+            price_per_token = row['close']  # Price per token
+            market_cap = row['market_cap']  # Market cap in USD from Bitquery
             
-            # For very small volumes, use a different approach
-            if total_volume < 1000:  # Very small volume threshold
-                # Use a simplified turnover calculation for low-volume tokens
-                # Estimate turnover based on volume relative to a base market cap
-                base_market_cap = 1000000  # $1M base market cap
-                turnover = (total_volume / base_market_cap) * 100
-            else:
-                # Estimate market cap using volume and price
-                estimated_market_cap = total_volume * avg_price if avg_price > 0 else total_volume
+            if price_per_token > 0:
+                dollar_volume = token_volume * price_per_token
+                dollar_volumes.append(dollar_volume)
                 
-                # Turnover = (Total Volume / Estimated Market Cap) * 100
-                turnover = (total_volume / estimated_market_cap) * 100 if estimated_market_cap > 0 else 0
+                # Use market cap data if available
+                if market_cap > 0:
+                    market_caps.append(market_cap)
+        
+        if not dollar_volumes:
+            return 0.0
+        
+        total_dollar_volume = sum(dollar_volumes)
+        
+        # Use actual market cap if available, otherwise estimate
+        if market_caps:
+            # Use actual market cap data from Bitquery
+            total_market_cap = sum(market_caps)
         else:
-            turnover = 0
+            # Fallback: estimate market cap using heuristic
+            # For memecoins, market cap is typically 10-100x daily volume
+            total_market_cap = total_dollar_volume * 50  # Assume 50x daily volume = market cap
+        
+        # Turnover = (Total Dollar Volume / Total Market Cap) * 100
+        turnover = (total_dollar_volume / total_market_cap) * 100 if total_market_cap > 0 else 0
         
         return turnover
     
@@ -450,19 +474,20 @@ class MemeCoinRiskAnalyzer:
         print("\nDisclaimer: Past performance is not an indication of future results.")
 
 
-def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 50 Volume") -> Dict:
+def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 50 Volume", market_cap_data: Dict = None) -> Dict:
     """
     Main function to process Bitquery data and generate risk metrics.
     
     Args:
         bitquery_response: Raw response from Bitquery API
         index_name: Name of the index (e.g., "Memecoin 50 Volume", "Memecoin 50 Volatility")
+        market_cap_data: Dictionary containing market cap data for tokens (mint_address -> market_cap_usd)
         
     Returns:
         Dictionary containing risk and return metrics
     """
     analyzer = MemeCoinRiskAnalyzer()
-    analyzer.load_bitquery_data(bitquery_response)
+    analyzer.load_bitquery_data(bitquery_response, market_cap_data)
     
     # Generate profile for the data
     profile = analyzer.generate_risk_return_profile(index_name)
