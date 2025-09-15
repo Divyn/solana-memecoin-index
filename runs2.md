@@ -1,6 +1,9 @@
 Fetching memecoin data from Bitquery...
 Fetching volume-ordered data...
 Fetching volatility-ordered data...
+Fetching market cap data for 112 tokens...
+Fetching SOL price...
+Found 90 TokenSupplyUpdates
 Data fetched successfully!
 
 ================================================================================
@@ -18,23 +21,23 @@ MEMECOIN RISK ANALYSIS RESULTS - COMPARISON
 ====================================================================================================
 Metric                    Memecoin 50 Volume   Memecoin 50 Volatility
 -------------------------------------------------------
-Turnover (%)              4386.63              0.00                
+Turnover (%)              0.00                 3846.16             
 
 Realized Volatility (%)  
-  15d Volatility (%)<25 0.23                 4.66                
-  1m Volatility (%)<25 0.28                 5.83                
-  3m Volatility (%)<25 0.34                 6.99                
-  1y Volatility (%)<25 0.43                 8.74                
-  3y Volatility (%)<25 0.37                 7.57                
+  15d Volatility (%)<25 0.49                 3.34                
+  1m Volatility (%)<25 0.61                 4.18                
+  3m Volatility (%)<25 0.73                 5.01                
+  1y Volatility (%)<25 0.91                 6.26                
+  3y Volatility (%)<25 0.79                 5.43                
 
 Return-to-Risk Ratio     
-  15d Return-to-Risk<25 58.25                1000.00             
-  1m Return-to-Risk<25 46.60                1000.00             
-  3m Return-to-Risk<25 38.83                1000.00             
-  1y Return-to-Risk<25 31.07                1000.00             
-  3y Return-to-Risk<25 35.85                1000.00             
+  15d Return-to-Risk<25 40.17                1000.00             
+  1m Return-to-Risk<25 32.14                1000.00             
+  3m Return-to-Risk<25 26.78                1000.00             
+  1y Return-to-Risk<25 21.42                1000.00             
+  3y Return-to-Risk<25 24.72                1000.00             
 
-Max Drawdown (%)          -90.41               -100.00             
+Max Drawdown (%)          -94.61               -100.00             
 
 ====================================================================================================
 TOP 10 TOKENS COMPARISON
@@ -42,30 +45,30 @@ TOP 10 TOKENS COMPARISON
 MEMECOIN 50 VOLUME INDEX - Top 10 by Volume:
 Rank Symbol       Name                 Mint Address                                 Volume          Volatility   Weight  
 ------------------------------------------------------------------------------------------------------------------------
-1    JOEY         Joey                 4kN8iUGp...PzqcHnzW                          13428322566788088 0.00         32.90   %
-2    JOEY         Joey                 4kN8iUGp...PzqcHnzW                          13428322566788088 0.00         32.90   %
-3    DJT          Donald J Trump       GRPCVjqk...6tiU8wGZ                          3076419017328396 0.00         7.54    %
-4    DIABLO       Diablo IV            3CLPGdfB...tRMDEDjN                          2784000904548160 0.00         6.82    %
-5    LEN          Len Sassaman         CDiAtpJM...buSGCu5u                          1994079651028240 0.00         4.89    %
-6    PiDoge       Pi Network Doge      Da8Eakwj...vsSvWERx                          1770926706962699 0.00         4.34    %
-7    DOGETF       DOGE ETF             9JDUJtFg...9j8LgEAE                          1154448632919022 0.00         2.83    %
-8    DIABLO       Diablo IV            3CLPGdfB...tRMDEDjN                          1100734438867937 0.00         2.70    %
-9    $COPPER      $COPPER              2pASaZVM...8L8RyYwQ                          1037574106766500 0.00         2.54    %
-10   Towelie      Towelie              CikxgbFM...wjfBRrJJ                          1036919713910783 0.00         2.54    %
+1    JOEY         Joey                 4kN8iUGp...PzqcHnzW                          39941209656472784 0.00         41.30   %
+2    JOEY         Joey                 4kN8iUGp...PzqcHnzW                          39941209656472784 0.00         41.30   %
+3    NAZIELON     NAZI ELON            Fv4RBwqq...kisLy7xm                          3838988204819346 0.00         3.97    %
+4    AMERICAI     AMERICA AI Agent     Hk3K1bxE...cgTTK6V1                          2318883103286744 0.00         2.40    %
+5    DOGEMARS     DOGE TO MARS         A3t4ap3o...TMzF9kzb                          2284958360167751 0.00         2.36    %
+6    PEON         Peon                 CMxgFgoi...J1xo8b78                          1973948333465020 0.00         2.04    %
+7    $GOLD        $GOLD                H1PevUqm...7GZ7qpRE                          1948975891138060 0.00         2.02    %
+8    STONKS       Stank Memes          9nvM2qJZ...Hmcj6NU7                          1654987551993816 0.00         1.71    %
+9    DOGEMARS     DOGEMARS             3EqTrNuC...Gd8BLhy6                          1400000000000000 0.00         1.45    %
+10   UnitreeDOG   Unitree AI Robot Dog 6LrY2g3d...NEstNT7D                          1400000000000000 0.00         1.45    %
 
 MEMECOIN 50 VOLATILITY INDEX - Top 10 by Volatility:
 Rank Symbol       Name                 Mint Address                                 Volume          Volatility   Weight  
 ------------------------------------------------------------------------------------------------------------------------
-1    GURUG        GURUG                3K8Hu963...NtDEpump                          315939008       206191.40    99.53   %
-2    CARDS        Collector Crypt      CARDSccU...d3dKxYjp                          861496          398074.22    0.27    %
-3    $PAWKER      Peter PAWker         DnKkDNX1...W3V2P3h6                          331714          13913064.89  0.10    %
-4    USDUC        unstable coin        CB9dDufT...XxHKpump                          268768          178863.97    0.08    %
-5    EXO   Exotic Markets EXoMAHnw...7gHccQKR                          12690           6217616.30   0.00    %
-6    PUMP         Pump                 pumpCmXq...8H7H9Dfn                          8488            185339.30    0.00    %
-7    Cake         PancakeSwap Token    4qQeZ5Lw...sWZp89HL                          6514            1343735.77   0.00    %
-8    USD1         World Liberty Financ USD1ttGY...iQzvEmuB                          2493            1410731.93   0.00    %
-9    WMATIC       Wrapped Matic (Wormh Gz7VkD4M...ikGsvopG                          850             136588.05    0.00    %
-10   USD1         World Liberty Financ USD1ttGY...iQzvEmuB                          814             119479.68    0.00    %
+1    USDUC        unstable coin        CB9dDufT...XxHKpump                          473150          305917.82    56.85   %
+2    $PAWKER      Peter PAWker         DnKkDNX1...W3V2P3h6                          125693          4996476.62   15.10   %
+3    $PAWKER      Peter PAWker         DnKkDNX1...W3V2P3h6                          124465          1436983.84   14.96   %
+4    $PAWKER      Peter PAWker         DnKkDNX1...W3V2P3h6                          89059           470831.02    10.70   %
+5    BITTY        The Bitcoin Mascot   dTzEP9JU...1APBpump                          5869            5158789.00   0.71    %
+6    YZY          BANK OF YZY          AHxE3UAj...kTHhxszS                          3915            58541597.55  0.47    %
+7    ai16z        ai16z                HeLp6NuQ...n4V98jwC                          3467            354829.28    0.42    %
+8    ARB          Arbitrage Loop       EDcdVtzW...XpQFUk3s                          3023            11149237.85  0.36    %
+9    USELESS      USELESS COIN         Dz9mQ9Nz...iW8Mbonk                          2362            621803.87    0.28    %
+10   PUMP         Pump                 pumpCmXq...8H7H9Dfn                          1250            2430742.95   0.15    %
 
 ====================================================================================================
 INDEX CONSTRUCTION METHODOLOGY
@@ -73,8 +76,8 @@ INDEX CONSTRUCTION METHODOLOGY
 Metric                         Memecoin 50 Volume   Memecoin 50 Volatility
 ----------------------------------------------------------------------
 Total Tokens                   100                  100                 
-Total Volume                   55,919,684,283,060,048 317,433,980
-Top 10 Contribution (%)        72.98                100.00              
+Total Volume                   129,703,365,499,506,512 833,655
+Top 10 Contribution (%)        74.56                99.83               
 
 Selection Criteria:
   • Volume-based ranking (top 100 by trading volume)
@@ -104,24 +107,24 @@ Metric                         Volume Index         Volatility Index     Winner
 
 VOLATILITY ANALYSIS           
 -------------------------------------------------------------------------------------
-  15d Volatility (%)<25 0.23                 4.66                 Volume         
-  1m Volatility (%)<25 0.28                 5.83                 Volume         
-  3m Volatility (%)<25 0.34                 6.99                 Volume         
-  1y Volatility (%)<25 0.43                 8.74                 Volume         
-  3y Volatility (%)<25 0.37                 7.57                 Volume         
+  15d Volatility (%)<25 0.49                 3.34                 Volume         
+  1m Volatility (%)<25 0.61                 4.18                 Volume         
+  3m Volatility (%)<25 0.73                 5.01                 Volume         
+  1y Volatility (%)<25 0.91                 6.26                 Volume         
+  3y Volatility (%)<25 0.79                 5.43                 Volume         
 
 RETURN-TO-RISK ANALYSIS       
 -------------------------------------------------------------------------------------
-  15d Return-to-Risk<25 58.25                1000.00              Volatility     
-  1m Return-to-Risk<25 46.60                1000.00              Volatility     
-  3m Return-to-Risk<25 38.83                1000.00              Volatility     
-  1y Return-to-Risk<25 31.07                1000.00              Volatility     
-  3y Return-to-Risk<25 35.85                1000.00              Volatility     
+  15d Return-to-Risk<25 40.17                1000.00              Volatility     
+  1m Return-to-Risk<25 32.14                1000.00              Volatility     
+  3m Return-to-Risk<25 26.78                1000.00              Volatility     
+  1y Return-to-Risk<25 21.42                1000.00              Volatility     
+  3y Return-to-Risk<25 24.72                1000.00              Volatility     
 
 RISK ASSESSMENT               
 -------------------------------------------------------------------------------------
-  Turnover (%)<25 4386.63              0.00                 Volume         
-  Max Drawdown (%)<25 -90.41               -100.00              Volume         
+  Turnover (%)<25 0.00                 3846.16              Volatility     
+  Max Drawdown (%)<25 -94.61               -100.00              Volume         
 
 OVERALL PERFORMANCE SUMMARY   
 -------------------------------------------------------------------------------------
@@ -143,3 +146,5 @@ INVESTMENT RECOMMENDATIONS
     • Higher volatility, potential for higher returns
     • More suitable for short-term trading
     • Higher risk, higher reward potential
+====================================================================================================
+divyasshree@Divyasshrees-MacBook-Air memecoin-index % 
