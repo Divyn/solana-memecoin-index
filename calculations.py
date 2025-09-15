@@ -3,6 +3,7 @@ import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
 import json
+from decimal import Decimal, getcontext
 
 class MemeCoinRiskAnalyzer:
     """
@@ -60,7 +61,7 @@ class MemeCoinRiskAnalyzer:
     
     def calculate_turnover(self, period_days: int = 30) -> float:
         """
-        Calculate turnover rate for the given period.
+        Calculate turnover rate for the given period using proper decimal arithmetic.
         
         Note: Volume from Bitquery is in token units, not dollar units.
         We calculate dollar volume by multiplying token volume by price.
@@ -78,42 +79,42 @@ class MemeCoinRiskAnalyzer:
         if len(self.data) == 0:
             return 0.0
         
-        # Calculate dollar volume: token_volume * price_per_token
-        # Use close price as the most recent price for each token
-        dollar_volumes = []
-        market_caps = []
+        # Set high precision for decimal calculations
+        getcontext().prec = 50
+        
+        # Calculate dollar volume using decimal arithmetic to avoid floating point errors
+        total_dollar_volume = Decimal('0')
+        total_market_cap = Decimal('0')
         
         for _, row in self.data.iterrows():
-            token_volume = row['volume']  # Token units
-            price_per_token = row['close']  # Price per token
-            market_cap = row['market_cap']  # Market cap in USD from Bitquery
+            token_volume = Decimal(str(row['volume']))  # Token units
+            price_per_token = Decimal(str(row['close']))  # Price per token
+            market_cap = Decimal(str(row['market_cap']))  # Market cap in USD from Bitquery
             
             if price_per_token > 0:
+                # Calculate dollar volume using decimal arithmetic
                 dollar_volume = token_volume * price_per_token
-                dollar_volumes.append(dollar_volume)
+                total_dollar_volume += dollar_volume
                 
                 # Use market cap data if available
                 if market_cap > 0:
-                    market_caps.append(market_cap)
+                    total_market_cap += market_cap
         
-        if not dollar_volumes:
+        if total_dollar_volume == 0:
             return 0.0
         
-        total_dollar_volume = sum(dollar_volumes)
-        
         # Use actual market cap if available, otherwise estimate
-        if market_caps:
-            # Use actual market cap data from Bitquery
-            total_market_cap = sum(market_caps)
-        else:
+        if total_market_cap == 0:
             # Fallback: estimate market cap using heuristic
             # For memecoins, market cap is typically 10-100x daily volume
-            total_market_cap = total_dollar_volume * 50  # Assume 50x daily volume = market cap
+            total_market_cap = total_dollar_volume * Decimal('50')  # Assume 50x daily volume = market cap
         
         # Turnover = (Total Dollar Volume / Total Market Cap) * 100
-        turnover = (total_dollar_volume / total_market_cap) * 100 if total_market_cap > 0 else 0
-        
-        return turnover
+        if total_market_cap > 0:
+            turnover = (total_dollar_volume / total_market_cap) * Decimal('100')
+            return float(turnover)
+        else:
+            return 0.0
     
     def calculate_realized_volatility(self, prices: List[float], period: str = "1m") -> float:
         """
@@ -263,11 +264,21 @@ class MemeCoinRiskAnalyzer:
         
         # Add additional calculated metrics for each token
         top_tokens['price_range'] = top_tokens['high'] - top_tokens['low']
-        top_tokens['price_volatility'] = (top_tokens['price_range'] / top_tokens['close']) * 100
+        # Use decimal arithmetic for price volatility calculation to avoid precision errors
+        def calc_price_volatility(row):
+            if row['close'] > 0:
+                price_range = Decimal(str(row['price_range']))
+                close_price = Decimal(str(row['close']))
+                volatility = (price_range / close_price) * Decimal('100')
+                return float(volatility)
+            else:
+                return 0
+        
+        top_tokens['price_volatility'] = top_tokens.apply(calc_price_volatility, axis=1)
         top_tokens['volume_weight'] = (top_tokens['volume'] / top_tokens['volume'].sum()) * 100
         
-        return top_tokens[['symbol', 'name', 'mint_address', 'volume', 'volatility', 
-                          'high', 'low', 'close', 'count', 'price_volatility', 'volume_weight']]
+        return top_tokens[['symbol', 'name', 'mint_address', 'volume', 'price_volatility', 
+                          'high', 'low', 'close', 'count', 'volume_weight']]
     
     def explain_index_construction(self) -> Dict:
         """
@@ -347,16 +358,20 @@ class MemeCoinRiskAnalyzer:
             period_multiplier = {"15d": 0.8, "1m": 1.0, "3m": 1.2, "1y": 1.5, "3y": 1.3}
             
             if len(self.data) > 0:
-                # Calculate price range volatility: (high - low) / low
+                # Calculate price range volatility using decimal arithmetic: (high - low) / low
                 # This gives us a measure of price volatility for each token
-                price_volatility = (self.data['high'] - self.data['low']) / self.data['low']
+                price_volatility = []
+                for _, row in self.data.iterrows():
+                    if row['low'] > 0:
+                        high = Decimal(str(row['high']))
+                        low = Decimal(str(row['low']))
+                        vol = float((high - low) / low)
+                        if np.isfinite(vol):
+                            price_volatility.append(vol)
                 
-                # Filter out infinite and NaN values
-                valid_vol = price_volatility[np.isfinite(price_volatility)]
-                
-                if len(valid_vol) > 0:
+                if len(price_volatility) > 0:
                     # Use median price volatility to avoid extreme outliers
-                    median_price_vol = valid_vol.median()
+                    median_price_vol = np.median(price_volatility)
                     
                     # Convert to percentage and apply period multiplier
                     base_vol = median_price_vol * 100  # Convert to percentage
@@ -374,10 +389,17 @@ class MemeCoinRiskAnalyzer:
         for period in ["15d", "1m", "3m", "1y", "3y"]:
             # For memecoins, calculate return-to-risk using high/low price ranges
             if len(self.data) > 0:
-                # Calculate average return using high/low range as proxy
-                # Filter out infinite and NaN values
-                price_ratios = (self.data['high'] - self.data['low']) / self.data['low']
-                valid_ratios = price_ratios[np.isfinite(price_ratios)]
+                # Calculate average return using high/low range as proxy with decimal arithmetic
+                price_ratios = []
+                for _, row in self.data.iterrows():
+                    if row['low'] > 0:
+                        high = Decimal(str(row['high']))
+                        low = Decimal(str(row['low']))
+                        ratio = float((high - low) / low)
+                        if np.isfinite(ratio):
+                            price_ratios.append(ratio)
+                
+                valid_ratios = np.array(price_ratios)
                 
                 if len(valid_ratios) > 0:
                     avg_return = valid_ratios.mean()
@@ -397,10 +419,22 @@ class MemeCoinRiskAnalyzer:
             else:
                 return_risk_ratios[period] = 0.0
         
-        # Calculate max drawdown using high/low price ranges
+        # Calculate max drawdown using high/low price ranges with decimal arithmetic
         if len(self.data) > 0:
             # Calculate max drawdown as the worst case scenario from high to low
-            max_drawdown_pct = ((self.data['low'] - self.data['high']) / self.data['high']).min() * 100
+            drawdowns = []
+            for _, row in self.data.iterrows():
+                if row['high'] > 0:
+                    high = Decimal(str(row['high']))
+                    low = Decimal(str(row['low']))
+                    drawdown = float((low - high) / high)
+                    if np.isfinite(drawdown):
+                        drawdowns.append(drawdown)
+            
+            if drawdowns:
+                max_drawdown_pct = min(drawdowns) * 100
+            else:
+                max_drawdown_pct = 0.0
             max_drawdown_date = ""  # We don't have date information in this aggregated data
         else:
             max_drawdown_pct = 0.0
