@@ -23,12 +23,13 @@ def analyze_memecoin_risk(data):
     print("="*80)
     
     volume_data = data['volume_ordered']
+    market_cap_data = data.get('market_cap_data', {})
     
     if volume_data and 'data' in volume_data and volume_data['data'] is not None:
         if 'Solana' in volume_data['data']:
             volume_tokens = volume_data['data']['Solana']['DEXTradeByTokens']
             print(f"Found {len(volume_tokens)} tokens in volume-ordered data")
-            volume_profile = process_bitquery_data(volume_data['data'], "Memecoin 50 Volume")
+            volume_profile = process_bitquery_data(volume_data['data'], "Memecoin 50 Volume", market_cap_data)
         else:
             print("No 'Solana' key found in volume data")
             return None
@@ -47,7 +48,7 @@ def analyze_memecoin_risk(data):
         if 'Solana' in volatility_data['data']:
             volatility_tokens = volatility_data['data']['Solana']['DEXTradeByTokens']
             print(f"Found {len(volatility_tokens)} tokens in volatility-ordered data")
-            volatility_profile = process_bitquery_data(volatility_data['data'], "Memecoin 50 Volatility")
+            volatility_profile = process_bitquery_data(volatility_data['data'], "Memecoin 50 Volatility", market_cap_data)
         else:
             print("No 'Solana' key found in volatility data")
             return None
