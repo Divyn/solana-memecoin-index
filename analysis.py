@@ -41,9 +41,9 @@ def analyze_memecoin_risk(data):
         print("Unexpected volume data structure or data is None")
         return None
     
-    # Fetch accurate price data for ROI calculation
-    print("Fetching accurate price data for ROI calculation...")
-    price_data = fetch_token_oldest_latest_prices(list(token_addresses), "2024-07-01", "2024-08-01")
+    # Use ROI price data that's already included in the data structure
+    print("Using provided ROI price data...")
+    price_data = data['roi_price_data']
     print(f"Retrieved price data for {len(price_data)} tokens")
     
     # Process volume data with accurate price data
@@ -70,10 +70,8 @@ def analyze_memecoin_risk(data):
         print("Unexpected volatility data structure or data is None")
         return None
     
-    # Re-fetch price data with all tokens (volume + volatility)
-    print("Re-fetching price data with all tokens...")
-    price_data = fetch_token_oldest_latest_prices(list(token_addresses), "2024-07-01", "2024-08-01")
-    print(f"Retrieved price data for {len(price_data)} tokens")
+    # Use the same ROI price data for volatility analysis
+    print("Using existing ROI price data for volatility analysis...")
     
     # Process volatility data with accurate price data
     volatility_profile = process_bitquery_data(volatility_data['data'], "Memecoin 50 Volatility", market_cap_data, price_data)
