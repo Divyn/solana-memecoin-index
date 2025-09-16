@@ -356,11 +356,27 @@ class MemeCoinRiskAnalyzer:
                 oldest_price = price_info.get('oldest_price', 0)
                 latest_price = price_info.get('latest_price', 0)
                 
+                print(f"Debug ROI for {row['symbol']}: oldest={oldest_price}, latest={latest_price}")
+                
                 if oldest_price > 0 and latest_price > 0:
                     roi = ((latest_price - oldest_price) / oldest_price) * 100
+                    print(f"  Calculated ROI: {roi:.2f}%")
                     return roi
+                else:
+                    print(f"  Skipping - prices are 0: oldest={oldest_price}, latest={latest_price}")
+            else:
+                print(f"  No price data found for {mint_address}")
             
             return 0.0
+        
+        # Debug: Check how many tokens have price data
+        tokens_with_price_data = 0
+        for mint_address in roi_data['mint_address']:
+            if mint_address in price_data:
+                tokens_with_price_data += 1
+        
+        print(f"Debug: {tokens_with_price_data}/{len(roi_data)} tokens have price data")
+        print(f"Debug: Price data keys: {list(price_data.keys())[:5]}...")  # Show first 5 keys
         
         # Calculate ROI for each token
         roi_data['roi_percentage'] = roi_data.apply(calculate_token_roi, axis=1)
