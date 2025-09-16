@@ -16,16 +16,17 @@ def display_risk_analysis_results(volume_profile, volatility_profile):
     print("="*100)
     
     # Create comparison table
-    print(f"{'Metric':<25} {'Memecoin 50 Volume':<20} {'Memecoin 50 Volatility':<20}")
-    print("-"*55)
-    print(f"{'Turnover (%)':<25} {volume_profile['turnover']:<20.2f} {volatility_profile['turnover']:<20.2f}")
+    print(f"{'Metric':<30} {'Memecoin 50 Volume':<20} {'Memecoin 50 Volatility':<20}")
+    print("-"*70)
+    print(f"{'Constituent Stability (%)':<30} {volume_profile['constituent_stability']:<20.2f} {volatility_profile['constituent_stability']:<20.2f}")
+    print(f"{'Weight Concentration (%)':<30} {volume_profile['weight_concentration']:<20.2f} {volatility_profile['weight_concentration']:<20.2f}")
     
     print(f"\n{'Realized Volatility (%)':<25}")
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         print(f"  {period} Volatility (%)<25 {volume_profile['volatilities'][period]:<20.2f} {volatility_profile['volatilities'][period]:<20.2f}")
     
     print(f"\n{'Return-to-Risk Ratio':<25}")
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         print(f"  {period} Return-to-Risk<25 {volume_profile['return_risk_ratios'][period]:<20.2f} {volatility_profile['return_risk_ratios'][period]:<20.2f}")
     
     print(f"\n{'Max Drawdown (%)':<25} {volume_profile['max_drawdown']['percentage']:<20.2f} {volatility_profile['max_drawdown']['percentage']:<20.2f}")
@@ -99,7 +100,7 @@ def display_performance_comparison(volume_profile, volatility_profile, performan
     # Volatility comparison
     print(f"\n{'VOLATILITY ANALYSIS':<30}")
     print("-"*85)
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         vol_vol = volume_profile['volatilities'][period]
         vol_vol_vol = volatility_profile['volatilities'][period]
         winner = "Volume" if vol_vol < vol_vol_vol else "Volatility" if vol_vol_vol < vol_vol else "Tie"
@@ -108,7 +109,7 @@ def display_performance_comparison(volume_profile, volatility_profile, performan
     # Return-to-Risk comparison
     print(f"\n{'RETURN-TO-RISK ANALYSIS':<30}")
     print("-"*85)
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         vol_ratio = volume_profile['return_risk_ratios'][period]
         vol_vol_ratio = volatility_profile['return_risk_ratios'][period]
         winner = "Volume" if vol_ratio > vol_vol_ratio else "Volatility" if vol_vol_ratio > vol_ratio else "Tie"
@@ -117,12 +118,15 @@ def display_performance_comparison(volume_profile, volatility_profile, performan
     # Risk assessment
     print(f"\n{'RISK ASSESSMENT':<30}")
     print("-"*85)
-    vol_turnover = volume_profile['turnover']
-    vol_vol_turnover = volatility_profile['turnover']
+    vol_stability = volume_profile['constituent_stability']
+    vol_vol_stability = volatility_profile['constituent_stability']
+    vol_concentration = volume_profile['weight_concentration']
+    vol_vol_concentration = volatility_profile['weight_concentration']
     vol_drawdown = volume_profile['max_drawdown']['percentage']
     vol_vol_drawdown = volatility_profile['max_drawdown']['percentage']
     
-    print(f"  Turnover (%)<25 {vol_turnover:<20.2f} {vol_vol_turnover:<20.2f} {'Volume' if vol_turnover > vol_vol_turnover else 'Volatility' if vol_vol_turnover > vol_turnover else 'Tie':<15}")
+    print(f"  Constituent Stability (%)<25 {vol_stability:<20.2f} {vol_vol_stability:<20.2f} {'Volume' if vol_stability > vol_vol_stability else 'Volatility' if vol_vol_stability > vol_stability else 'Tie':<15}")
+    print(f"  Weight Concentration (%)<25 {vol_concentration:<20.2f} {vol_vol_concentration:<20.2f} {'Volume' if vol_concentration < vol_vol_concentration else 'Volatility' if vol_vol_concentration < vol_concentration else 'Tie':<15}")
     print(f"  Max Drawdown (%)<25 {vol_drawdown:<20.2f} {vol_vol_drawdown:<20.2f} {'Volume' if vol_drawdown > vol_vol_drawdown else 'Volatility' if vol_vol_drawdown > vol_drawdown else 'Tie':<15}")
     
     # Overall performance summary
