@@ -15,6 +15,24 @@ class MemeCoinRiskAnalyzer:
         self.data = None
         self.processed_data = None
     
+    def calculate_volatility_from_prices(self, high: float, low: float) -> float:
+        """
+        Calculate volatility from high/low price data.
+        
+        Args:
+            high: Highest price in the period
+            low: Lowest price in the period
+            
+        Returns:
+            Volatility as percentage
+        """
+        if low <= 0:
+            return 0.0
+        
+        # Price range volatility: (high - low) / low * 100
+        volatility = ((high - low) / low) * 100
+        return volatility
+
     def load_bitquery_data(self, data: Dict, market_cap_data: Dict = None) -> None:
         """
         Load and preprocess Bitquery API response data.
@@ -32,10 +50,19 @@ class MemeCoinRiskAnalyzer:
         processed_trades = []
         for trade in trades:
             trade_data = trade['Trade']
-            # Get volume and volatility from the top level, not from Trade
+            # Get volume from the top level
             volume = float(trade.get('volume', 0))
-            volatility = float(trade.get('volatility_token', 0))
             mint_address = trade_data['Currency']['MintAddress']
+            
+            # Get volatility from API if available, otherwise calculate from prices
+            api_volatility = trade.get('volatility_token')
+            if api_volatility is not None:
+                volatility = float(api_volatility)
+            else:
+                # Fallback: calculate volatility from high/low prices
+                high = float(trade_data.get('high', 0))
+                low = float(trade_data.get('low', 0))
+                volatility = self.calculate_volatility_from_prices(high, low)
             
             # Get market cap data if available
             market_cap = market_cap_data.get(mint_address, 0) if market_cap_data else 0
@@ -59,19 +86,27 @@ class MemeCoinRiskAnalyzer:
         self.data = pd.DataFrame(processed_trades)
         self.processed_data = self.data.copy()
     
-    def calculate_turnover(self, period_days: int = 30) -> float:
+    def create_volatility_ordered_data(self) -> pd.DataFrame:
         """
-        Calculate turnover rate for the given period using proper decimal arithmetic.
+        Create volatility-ordered dataset from the volume data.
         
-        Note: Volume from Bitquery is in token units, not dollar units.
-        We calculate dollar volume by multiplying token volume by price.
-        Market cap data comes directly from Bitquery TokenSupplyUpdates.
-        
-        Args:
-            period_days: Number of days to calculate turnover for
-            
         Returns:
-            Turnover rate as percentage
+            DataFrame sorted by volatility (descending)
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        # Sort by volatility in descending order
+        volatility_ordered = self.data.sort_values('volatility', ascending=False).copy()
+        return volatility_ordered
+    
+    def calculate_constituent_stability(self) -> float:
+        """
+        Calculate constituent stability - how stable the index composition is.
+        This is more meaningful than turnover for index construction.
+        
+        Returns:
+            Constituent stability as percentage (higher = more stable)
         """
         if self.data is None:
             raise ValueError("No data loaded. Call load_bitquery_data() first.")
@@ -79,42 +114,72 @@ class MemeCoinRiskAnalyzer:
         if len(self.data) == 0:
             return 0.0
         
-        # Set high precision for decimal calculations
-        getcontext().prec = 50
+        # For now, we'll calculate based on weight concentration
+        # In a real implementation, you'd compare against previous periods
+        weights = self.data['volume'] / self.data['volume'].sum()
         
-        # Calculate dollar volume using decimal arithmetic to avoid floating point errors
-        total_dollar_volume = Decimal('0')
-        total_market_cap = Decimal('0')
+        # Calculate Herfindahl Index (concentration measure)
+        # Lower HHI = more diversified = more stable
+        hhi = (weights ** 2).sum()
+        
+        # Convert to stability percentage (0-100%)
+        # HHI of 1.0 = complete concentration, HHI of 0.1 = good diversification
+        stability = max(0, (1.0 - hhi) * 100)
+        return min(stability, 100.0)
+    
+    def calculate_liquidity_coverage(self) -> float:
+        """
+        Calculate liquidity coverage ratio - can the index be traded without major price impact?
+        
+        Returns:
+            Liquidity coverage as percentage
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        if len(self.data) == 0:
+            return 0.0
+        
+        # Calculate total daily volume in USD
+        total_daily_volume = 0
+        total_market_cap = 0
         
         for _, row in self.data.iterrows():
-            token_volume = Decimal(str(row['volume']))  # Token units
-            price_per_token = Decimal(str(row['close']))  # Price per token
-            market_cap = Decimal(str(row['market_cap']))  # Market cap in USD from Bitquery
-            
-            if price_per_token > 0:
-                # Calculate dollar volume using decimal arithmetic
-                dollar_volume = token_volume * price_per_token
-                total_dollar_volume += dollar_volume
+            if row['close'] > 0:
+                daily_volume_usd = row['volume'] * row['close']
+                total_daily_volume += daily_volume_usd
                 
-                # Use market cap data if available
-                if market_cap > 0:
-                    total_market_cap += market_cap
+                if row['market_cap'] > 0:
+                    total_market_cap += row['market_cap']
         
-        if total_dollar_volume == 0:
-            return 0.0
-        
-        # Use actual market cap if available, otherwise estimate
         if total_market_cap == 0:
-            # Fallback: estimate market cap using heuristic
-            # For memecoins, market cap is typically 10-100x daily volume
-            total_market_cap = total_dollar_volume * Decimal('50')  # Assume 50x daily volume = market cap
-        
-        # Turnover = (Total Dollar Volume / Total Market Cap) * 100
-        if total_market_cap > 0:
-            turnover = (total_dollar_volume / total_market_cap) * Decimal('100')
-            return float(turnover)
-        else:
             return 0.0
+        
+        # Liquidity coverage = (Daily Volume / Market Cap) * 100
+        coverage = (total_daily_volume / total_market_cap) * 100
+        return min(coverage, 1000.0)  # Cap at 1000%
+    
+    def calculate_weight_concentration(self) -> float:
+        """
+        Calculate weight concentration using Herfindahl Index.
+        
+        Returns:
+            Concentration percentage (higher = more concentrated)
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        if len(self.data) == 0:
+            return 0.0
+        
+        # Calculate weights
+        weights = self.data['volume'] / self.data['volume'].sum()
+        
+        # Herfindahl Index
+        hhi = (weights ** 2).sum()
+        
+        # Convert to percentage
+        return hhi * 100
     
     def calculate_realized_volatility(self, prices: List[float], period: str = "1m") -> float:
         """
@@ -180,11 +245,10 @@ class MemeCoinRiskAnalyzer:
     def _get_periods_per_year(self, period: str) -> int:
         """Get number of periods per year for different timeframes."""
         period_map = {
-            "15d": 24.33,  # 15-day periods (365/15)
+            "2w": 26,      # 2-week periods (365/14)
             "1m": 12,      # Monthly
-            "3m": 4,       # Quarterly
+            "6m": 2,       # 6-month periods
             "1y": 1,       # Annual
-            "3y": 1/3      # 3-year period
         }
         return period_map.get(period, 12)
     
@@ -343,8 +407,10 @@ class MemeCoinRiskAnalyzer:
         if self.data is None:
             raise ValueError("No data loaded. Call load_bitquery_data() first.")
         
-        # Calculate turnover
-        turnover = self.calculate_turnover()
+        # Calculate meaningful index metrics
+        constituent_stability = self.calculate_constituent_stability()
+        liquidity_coverage = self.calculate_liquidity_coverage()
+        weight_concentration = self.calculate_weight_concentration()
         
         # Use the volatility data from Bitquery as base, then calculate for different periods
         base_volatility = self.data['volatility'].mean() if len(self.data) > 0 else 0
@@ -352,10 +418,10 @@ class MemeCoinRiskAnalyzer:
         
         # Calculate volatilities for different periods
         volatilities = {}
-        for period in ["15d", "1m", "3m", "1y", "3y"]:
+        for period in ["2w", "1m", "6m", "1y"]:
             # For memecoins, calculate volatility from high/low price ranges
             # This is more reliable than using Bitquery's volatility field
-            period_multiplier = {"15d": 0.8, "1m": 1.0, "3m": 1.2, "1y": 1.5, "3y": 1.3}
+            period_multiplier = {"2w": 0.8, "1m": 1.0, "6m": 1.2, "1y": 1.5}
             
             if len(self.data) > 0:
                 # Calculate price range volatility using decimal arithmetic: (high - low) / low
@@ -366,7 +432,9 @@ class MemeCoinRiskAnalyzer:
                         high = Decimal(str(row['high']))
                         low = Decimal(str(row['low']))
                         vol = float((high - low) / low)
-                        if np.isfinite(vol):
+                        # Cap extreme values to prevent unrealistic volatility
+                        vol = min(vol, 10.0)  # Cap at 1000% volatility
+                        if np.isfinite(vol) and vol >= 0:
                             price_volatility.append(vol)
                 
                 if len(price_volatility) > 0:
@@ -375,7 +443,9 @@ class MemeCoinRiskAnalyzer:
                     
                     # Convert to percentage and apply period multiplier
                     base_vol = median_price_vol * 100  # Convert to percentage
-                    volatilities[period] = base_vol * period_multiplier.get(period, 1.0)
+                    # Cap the final volatility to reasonable levels
+                    final_vol = min(base_vol * period_multiplier.get(period, 1.0), 500.0)
+                    volatilities[period] = final_vol
                     
                 else:
                     # Fallback: use a reasonable memecoin volatility estimate
@@ -386,7 +456,7 @@ class MemeCoinRiskAnalyzer:
         
         # Calculate return-to-risk ratios
         return_risk_ratios = {}
-        for period in ["15d", "1m", "3m", "1y", "3y"]:
+        for period in ["2w", "1m", "6m", "1y"]:
             # For memecoins, calculate return-to-risk using high/low price ranges
             if len(self.data) > 0:
                 # Calculate average return using high/low range as proxy with decimal arithmetic
@@ -446,20 +516,20 @@ class MemeCoinRiskAnalyzer:
         
         profile = {
             "index": index_name,
-            "turnover": round(turnover, 2),
+            "constituent_stability": round(constituent_stability, 2),
+            "liquidity_coverage": round(liquidity_coverage, 2),
+            "weight_concentration": round(weight_concentration, 2),
             "volatilities": {
-                "15d": round(volatilities["15d"], 2),
+                "2w": round(volatilities["2w"], 2),
                 "1m": round(volatilities["1m"], 2),
-                "3m": round(volatilities["3m"], 2),
-                "1y": round(volatilities["1y"], 2),
-                "3y": round(volatilities["3y"], 2)
+                "6m": round(volatilities["6m"], 2),
+                "1y": round(volatilities["1y"], 2)
             },
             "return_risk_ratios": {
-                "15d": round(return_risk_ratios["15d"], 2),
+                "2w": round(return_risk_ratios["2w"], 2),
                 "1m": round(return_risk_ratios["1m"], 2),
-                "3m": round(return_risk_ratios["3m"], 2),
-                "1y": round(return_risk_ratios["1y"], 2),
-                "3y": round(return_risk_ratios["3y"], 2)
+                "6m": round(return_risk_ratios["6m"], 2),
+                "1y": round(return_risk_ratios["1y"], 2)
             },
             "max_drawdown": {
                 "percentage": round(max_drawdown_pct, 2),
@@ -485,16 +555,16 @@ class MemeCoinRiskAnalyzer:
         # Header
         header = f"{'Index':<8} {'Turnover':<10} {'Volatility (%)':<40} {'Return-to-Risk Ratio':<40} {'Max Drawdown':<20}"
         print(header)
-        print(f"{'':8} {'':10} {'1m':<8} {'3m':<8} {'1y':<8} {'3y':<8} {'1m':<8} {'3m':<8} {'1y':<8} {'3y':<8} {'%':<8} {'Date':<10}")
+        print(f"{'':8} {'':10} {'2w':<8} {'1m':<8} {'6m':<8} {'1y':<8} {'2w':<8} {'1m':<8} {'6m':<8} {'1y':<8} {'%':<8} {'Date':<10}")
         print("-"*120)
         
         # Data rows
         for profile in profiles:
             row = f"{profile['index']:<8} {profile['turnover']:<10.2f} "
-            row += f"{profile['volatilities']['1m']:<8.2f} {profile['volatilities']['3m']:<8.2f} "
-            row += f"{profile['volatilities']['1y']:<8.2f} {profile['volatilities']['3y']:<8.2f} "
-            row += f"{profile['return_risk_ratios']['1m']:<8.2f} {profile['return_risk_ratios']['3m']:<8.2f} "
-            row += f"{profile['return_risk_ratios']['1y']:<8.2f} {profile['return_risk_ratios']['3y']:<8.2f} "
+            row += f"{profile['volatilities']['2w']:<8.2f} {profile['volatilities']['1m']:<8.2f} "
+            row += f"{profile['volatilities']['6m']:<8.2f} {profile['volatilities']['1y']:<8.2f} "
+            row += f"{profile['return_risk_ratios']['2w']:<8.2f} {profile['return_risk_ratios']['1m']:<8.2f} "
+            row += f"{profile['return_risk_ratios']['6m']:<8.2f} {profile['return_risk_ratios']['1y']:<8.2f} "
             row += f"{profile['max_drawdown']['percentage']:<8.2f} {profile['max_drawdown']['date']:<10}"
             print(row)
         
