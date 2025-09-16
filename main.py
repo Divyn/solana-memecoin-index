@@ -12,8 +12,8 @@ def main():
     Main function to run the complete memecoin risk analysis.
     """
     print("Fetching memecoin data from Bitquery...")
-    # data = fetch_memecoin_data()  # Run 1: Current 6 months (default)
-    data = fetch_memecoin_data("2024-09-01", "2025-03-30")  # Run 2: Custom date range
+    data = fetch_memecoin_data("2025-03-01", "2025-09-30")  # Run 1: Current 6 months (default)
+    # data = fetch_memecoin_data("2024-09-01", "2025-03-30")  # Run 2: Custom date range
     
     if data is None:
         print("Failed to fetch data. Please check your API token and connection.")
