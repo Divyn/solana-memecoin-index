@@ -31,6 +31,19 @@ def display_risk_analysis_results(volume_profile, volatility_profile):
     
     print(f"\n{'Max Drawdown (%)':<25} {volume_profile['max_drawdown']['percentage']:<20.2f} {volatility_profile['max_drawdown']['percentage']:<20.2f}")
     
+    # Display ROI statistics
+    print(f"\n{'ROI ANALYSIS':<25}")
+    print("-"*70)
+    vol_roi = volume_profile['roi_statistics']
+    vol_vol_roi = volatility_profile['roi_statistics']
+    
+    print(f"{'Average ROI (%)':<30} {vol_roi['average_roi']:<20.2f} {vol_vol_roi['average_roi']:<20.2f}")
+    print(f"{'Median ROI (%)':<30} {vol_roi['median_roi']:<20.2f} {vol_vol_roi['median_roi']:<20.2f}")
+    print(f"{'Max ROI (%)':<30} {vol_roi['max_roi']:<20.2f} {vol_vol_roi['max_roi']:<20.2f}")
+    print(f"{'Min ROI (%)':<30} {vol_roi['min_roi']:<20.2f} {vol_vol_roi['min_roi']:<20.2f}")
+    print(f"{'Positive ROI Tokens (%)':<30} {vol_roi['positive_roi_percentage']:<20.2f} {vol_vol_roi['positive_roi_percentage']:<20.2f}")
+    print(f"{'Volume-Weighted ROI (%)':<30} {vol_roi['volume_weighted_roi']:<20.2f} {vol_vol_roi['volume_weighted_roi']:<20.2f}")
+    
     # Display top tokens for both indices
     print("\n" + "="*100)
     print("TOP 10 TOKENS COMPARISON")
@@ -77,6 +90,35 @@ def display_risk_analysis_results(volume_profile, volatility_profile):
     print("\nExcluded Tokens:")
     for token in vol_info['excluded_tokens']:
         print(f"  • {token}")
+    
+    # Display ROI performance tables
+    print("\n" + "="*100)
+    print("ROI PERFORMANCE ANALYSIS")
+    print("="*100)
+    
+    print("MEMECOIN 50 VOLUME INDEX - Top 10 ROI Performers:")
+    print(f"{'Rank':<4} {'Symbol':<12} {'Name':<20} {'ROI %':<8}")
+    print("-"*50)
+    for i, token in enumerate(volume_profile['top_roi_tokens'], 1):
+        print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {token['roi_percentage']:<8.2f}")
+    
+    print("\nMEMECOIN 50 VOLUME INDEX - Worst 10 ROI Performers:")
+    print(f"{'Rank':<4} {'Symbol':<12} {'Name':<20} {'ROI %':<8}")
+    print("-"*50)
+    for i, token in enumerate(volume_profile['worst_roi_tokens'], 1):
+        print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {token['roi_percentage']:<8.2f}")
+    
+    print("\nMEMECOIN 50 VOLATILITY INDEX - Top 10 ROI Performers:")
+    print(f"{'Rank':<4} {'Symbol':<12} {'Name':<20} {'ROI %':<8}")
+    print("-"*50)
+    for i, token in enumerate(volatility_profile['top_roi_tokens'], 1):
+        print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {token['roi_percentage']:<8.2f}")
+    
+    print("\nMEMECOIN 50 VOLATILITY INDEX - Worst 10 ROI Performers:")
+    print(f"{'Rank':<4} {'Symbol':<12} {'Name':<20} {'ROI %':<8}")
+    print("-"*50)
+    for i, token in enumerate(volatility_profile['worst_roi_tokens'], 1):
+        print(f"{i:<4} {token['symbol']:<12} {token['name'][:20]:<20} {token['roi_percentage']:<8.2f}")
     
     print("="*100)
 
