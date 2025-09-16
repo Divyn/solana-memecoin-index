@@ -78,14 +78,14 @@ def calculate_performance_comparison(volume_profile, volatility_profile):
     risk_wins = 0
     
     # Volatility comparison (lower is better)
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         vol_vol = volume_profile['volatilities'][period]
         vol_vol_vol = volatility_profile['volatilities'][period]
         if vol_vol < vol_vol_vol:
             volatility_wins += 1
     
     # Return-to-Risk comparison (higher is better)
-    for period in ["15d", "1m", "3m", "1y", "3y"]:
+    for period in ["2w", "1m", "6m", "1y"]:
         vol_ratio = volume_profile['return_risk_ratios'][period]
         vol_vol_ratio = volatility_profile['return_risk_ratios'][period]
         if vol_ratio > vol_vol_ratio:
