@@ -310,6 +310,322 @@ class MemeCoinRiskAnalyzer:
         
         return max_drawdown_pct, max_drawdown_date
     
+    def get_token_addresses(self) -> List[str]:
+        """
+        Extract list of token addresses from the current dataset.
+        
+        Returns:
+            List of token mint addresses
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        if len(self.data) == 0:
+            return []
+        
+        return self.data['mint_address'].tolist()
+    
+    def calculate_roi_from_price_data(self, price_data: Dict) -> pd.DataFrame:
+        """
+        Calculate ROI using external price data (oldest and latest prices).
+        
+        Args:
+            price_data: Dictionary containing price data for tokens
+                       Format: {mint_address: {'oldest_price': float, 'latest_price': float, 'symbol': str, 'name': str}}
+        
+        Returns:
+            DataFrame with ROI calculations for each token
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        if len(self.data) == 0:
+            return pd.DataFrame()
+        
+        # Create a copy of the data to avoid modifying the original
+        roi_data = self.data.copy()
+        
+        def calculate_token_roi(row):
+            """
+            Calculate ROI using oldest and latest prices from external data.
+            """
+            mint_address = row['mint_address']
+            
+            if mint_address in price_data:
+                price_info = price_data[mint_address]
+                oldest_price = price_info.get('oldest_price', 0)
+                latest_price = price_info.get('latest_price', 0)
+                
+                if oldest_price > 0 and latest_price > 0:
+                    roi = ((latest_price - oldest_price) / oldest_price) * 100
+                    return roi
+            
+            return 0.0
+        
+        # Calculate ROI for each token
+        roi_data['roi_percentage'] = roi_data.apply(calculate_token_roi, axis=1)
+        
+        # Add price data from external source
+        roi_data['oldest_price'] = roi_data['mint_address'].map(
+            lambda x: price_data.get(x, {}).get('oldest_price', 0)
+        )
+        roi_data['latest_price'] = roi_data['mint_address'].map(
+            lambda x: price_data.get(x, {}).get('latest_price', 0)
+        )
+        
+        # Add additional ROI metrics
+        roi_data['roi_absolute'] = roi_data['latest_price'] - roi_data['oldest_price']
+        roi_data['roi_positive'] = roi_data['roi_percentage'] > 0
+        
+        return roi_data[['symbol', 'name', 'mint_address', 'oldest_price', 'latest_price',
+                        'roi_percentage', 'roi_absolute', 'roi_positive', 'volume', 'volatility']]
+    
+    def calculate_roi_per_token(self) -> pd.DataFrame:
+        """
+        Calculate ROI (Return on Investment) for each token in the dataset.
+        ROI = (close_price - open_price) / open_price * 100
+        
+        Returns:
+            DataFrame with ROI calculations for each token
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        if len(self.data) == 0:
+            return pd.DataFrame()
+        
+        # Create a copy of the data to avoid modifying the original
+        roi_data = self.data.copy()
+        
+        def calculate_token_roi(row):
+            """
+            Calculate ROI using open as earliest price and close as latest price.
+            """
+            open_price = row['open']
+            close_price = row['close']
+            
+            if open_price > 0 and close_price > 0:
+                roi = ((close_price - open_price) / open_price) * 100
+                return roi
+            else:
+                return 0.0
+        
+        # Calculate ROI for each token
+        roi_data['roi_percentage'] = roi_data.apply(calculate_token_roi, axis=1)
+        
+        # Add additional ROI metrics
+        roi_data['roi_absolute'] = roi_data['close'] - roi_data['open']
+        roi_data['roi_positive'] = roi_data['roi_percentage'] > 0
+        
+        return roi_data[['symbol', 'name', 'mint_address', 'open', 'close',
+                        'roi_percentage', 'roi_absolute', 'roi_positive', 'volume', 'volatility']]
+    
+    def calculate_roi_statistics(self) -> Dict:
+        """
+        Calculate comprehensive ROI statistics for the dataset.
+        
+        Returns:
+            Dictionary containing ROI statistics
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        roi_data = self.calculate_roi_per_token()
+        
+        if len(roi_data) == 0:
+            return {
+                'total_tokens': 0,
+                'positive_roi_count': 0,
+                'negative_roi_count': 0,
+                'average_roi': 0.0,
+                'median_roi': 0.0,
+                'max_roi': 0.0,
+                'min_roi': 0.0,
+                'roi_std': 0.0,
+                'positive_roi_percentage': 0.0,
+                'volume_weighted_roi': 0.0
+            }
+        
+        # Basic statistics
+        total_tokens = len(roi_data)
+        positive_roi_count = roi_data['roi_positive'].sum()
+        negative_roi_count = total_tokens - positive_roi_count
+        positive_roi_percentage = (positive_roi_count / total_tokens) * 100
+        
+        # ROI statistics
+        roi_percentages = roi_data['roi_percentage']
+        average_roi = roi_percentages.mean()
+        median_roi = roi_percentages.median()
+        max_roi = roi_percentages.max()
+        min_roi = roi_percentages.min()
+        roi_std = roi_percentages.std()
+        
+        # Volume-weighted ROI
+        if roi_data['volume'].sum() > 0:
+            volume_weights = roi_data['volume'] / roi_data['volume'].sum()
+            volume_weighted_roi = (roi_percentages * volume_weights).sum()
+        else:
+            volume_weighted_roi = 0.0
+        
+        return {
+            'total_tokens': total_tokens,
+            'positive_roi_count': int(positive_roi_count),
+            'negative_roi_count': int(negative_roi_count),
+            'average_roi': round(average_roi, 2),
+            'median_roi': round(median_roi, 2),
+            'max_roi': round(max_roi, 2),
+            'min_roi': round(min_roi, 2),
+            'roi_std': round(roi_std, 2),
+            'positive_roi_percentage': round(positive_roi_percentage, 2),
+            'volume_weighted_roi': round(volume_weighted_roi, 2)
+        }
+    
+    def get_top_roi_tokens(self, top_n: int = 10) -> pd.DataFrame:
+        """
+        Get top N tokens by ROI percentage.
+        
+        Args:
+            top_n: Number of top tokens to return
+            
+        Returns:
+            DataFrame with top tokens sorted by ROI (descending)
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        roi_data = self.calculate_roi_per_token()
+        
+        if len(roi_data) == 0:
+            return pd.DataFrame()
+        
+        # Sort by ROI percentage in descending order
+        top_roi_tokens = roi_data.nlargest(top_n, 'roi_percentage').copy()
+        
+        return top_roi_tokens[['symbol', 'name', 'mint_address', 'open', 'close',
+                               'roi_percentage', 'roi_absolute', 'volume', 'volatility']]
+    
+    def get_worst_roi_tokens(self, top_n: int = 10) -> pd.DataFrame:
+        """
+        Get worst N tokens by ROI percentage.
+        
+        Args:
+            top_n: Number of worst tokens to return
+            
+        Returns:
+            DataFrame with worst tokens sorted by ROI (ascending)
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_bitquery_data() first.")
+        
+        roi_data = self.calculate_roi_per_token()
+        
+        if len(roi_data) == 0:
+            return pd.DataFrame()
+        
+        # Sort by ROI percentage in ascending order
+        worst_roi_tokens = roi_data.nsmallest(top_n, 'roi_percentage').copy()
+        
+        return worst_roi_tokens[['symbol', 'name', 'mint_address', 'open', 'close',
+                                 'roi_percentage', 'roi_absolute', 'volume', 'volatility']]
+    
+    def calculate_roi_statistics_from_data(self, roi_data: pd.DataFrame) -> Dict:
+        """
+        Calculate ROI statistics from pre-calculated ROI data.
+        
+        Args:
+            roi_data: DataFrame with ROI calculations
+            
+        Returns:
+            Dictionary containing ROI statistics
+        """
+        if len(roi_data) == 0:
+            return {
+                'total_tokens': 0,
+                'positive_roi_count': 0,
+                'negative_roi_count': 0,
+                'average_roi': 0.0,
+                'median_roi': 0.0,
+                'max_roi': 0.0,
+                'min_roi': 0.0,
+                'roi_std': 0.0,
+                'positive_roi_percentage': 0.0,
+                'volume_weighted_roi': 0.0
+            }
+        
+        # Basic statistics
+        total_tokens = len(roi_data)
+        positive_roi_count = roi_data['roi_positive'].sum()
+        negative_roi_count = total_tokens - positive_roi_count
+        positive_roi_percentage = (positive_roi_count / total_tokens) * 100
+        
+        # ROI statistics
+        roi_percentages = roi_data['roi_percentage']
+        average_roi = roi_percentages.mean()
+        median_roi = roi_percentages.median()
+        max_roi = roi_percentages.max()
+        min_roi = roi_percentages.min()
+        roi_std = roi_percentages.std()
+        
+        # Volume-weighted ROI
+        if roi_data['volume'].sum() > 0:
+            volume_weights = roi_data['volume'] / roi_data['volume'].sum()
+            volume_weighted_roi = (roi_percentages * volume_weights).sum()
+        else:
+            volume_weighted_roi = 0.0
+        
+        return {
+            'total_tokens': total_tokens,
+            'positive_roi_count': int(positive_roi_count),
+            'negative_roi_count': int(negative_roi_count),
+            'average_roi': round(average_roi, 2),
+            'median_roi': round(median_roi, 2),
+            'max_roi': round(max_roi, 2),
+            'min_roi': round(min_roi, 2),
+            'roi_std': round(roi_std, 2),
+            'positive_roi_percentage': round(positive_roi_percentage, 2),
+            'volume_weighted_roi': round(volume_weighted_roi, 2)
+        }
+    
+    def get_top_roi_tokens_from_data(self, roi_data: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
+        """
+        Get top N tokens by ROI percentage from pre-calculated ROI data.
+        
+        Args:
+            roi_data: DataFrame with ROI calculations
+            top_n: Number of top tokens to return
+            
+        Returns:
+            DataFrame with top tokens sorted by ROI (descending)
+        """
+        if len(roi_data) == 0:
+            return pd.DataFrame()
+        
+        # Sort by ROI percentage in descending order
+        top_roi_tokens = roi_data.nlargest(top_n, 'roi_percentage').copy()
+        
+        return top_roi_tokens[['symbol', 'name', 'mint_address', 'oldest_price', 'latest_price',
+                               'roi_percentage', 'roi_absolute', 'volume', 'volatility']]
+    
+    def get_worst_roi_tokens_from_data(self, roi_data: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
+        """
+        Get worst N tokens by ROI percentage from pre-calculated ROI data.
+        
+        Args:
+            roi_data: DataFrame with ROI calculations
+            top_n: Number of worst tokens to return
+            
+        Returns:
+            DataFrame with worst tokens sorted by ROI (ascending)
+        """
+        if len(roi_data) == 0:
+            return pd.DataFrame()
+        
+        # Sort by ROI percentage in ascending order
+        worst_roi_tokens = roi_data.nsmallest(top_n, 'roi_percentage').copy()
+        
+        return worst_roi_tokens[['symbol', 'name', 'mint_address', 'oldest_price', 'latest_price',
+                                 'roi_percentage', 'roi_absolute', 'volume', 'volatility']]
+    
     def get_top_tokens_by_volume(self, top_n: int = 10) -> pd.DataFrame:
         """
         Get top N tokens by volume with their details.
@@ -394,7 +710,7 @@ class MemeCoinRiskAnalyzer:
         
         return construction_info
     
-    def generate_risk_return_profile(self, index_name: str = "Memecoin 50 Volume") -> Dict:
+    def generate_risk_return_profile(self, index_name: str = "Memecoin 50 Volume", price_data: Dict = None) -> Dict:
         """
         Generate complete risk and return profile for the data.
         
@@ -513,6 +829,19 @@ class MemeCoinRiskAnalyzer:
         top_tokens = self.get_top_tokens_by_volume(10)
         index_info = self.explain_index_construction()
         
+        # Calculate ROI statistics - use external price data if available
+        if price_data:
+            print("Using external price data for accurate ROI calculation...")
+            roi_data = self.calculate_roi_from_price_data(price_data)
+            roi_stats = self.calculate_roi_statistics_from_data(roi_data)
+            top_roi_tokens = self.get_top_roi_tokens_from_data(roi_data, 10)
+            worst_roi_tokens = self.get_worst_roi_tokens_from_data(roi_data, 10)
+        else:
+            print("Using fallback ROI calculation with open/close prices...")
+            roi_stats = self.calculate_roi_statistics()
+            top_roi_tokens = self.get_top_roi_tokens(10)
+            worst_roi_tokens = self.get_worst_roi_tokens(10)
+        
         profile = {
             "index": index_name,
             "constituent_stability": round(constituent_stability, 2),
@@ -533,6 +862,9 @@ class MemeCoinRiskAnalyzer:
                 "percentage": round(max_drawdown_pct, 2),
                 "date": max_drawdown_date
             },
+            "roi_statistics": roi_stats,
+            "top_roi_tokens": top_roi_tokens.to_dict('records'),
+            "worst_roi_tokens": worst_roi_tokens.to_dict('records'),
             "top_tokens": top_tokens.to_dict('records'),
             "index_construction": index_info
         }
@@ -576,7 +908,7 @@ class MemeCoinRiskAnalyzer:
         print("\nDisclaimer: Past performance is not an indication of future results.")
 
 
-def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 50 Volume", market_cap_data: Dict = None) -> Dict:
+def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 50 Volume", market_cap_data: Dict = None, price_data: Dict = None) -> Dict:
     """
     Main function to process Bitquery data and generate risk metrics.
     
@@ -584,6 +916,7 @@ def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 5
         bitquery_response: Raw response from Bitquery API
         index_name: Name of the index (e.g., "Memecoin 50 Volume", "Memecoin 50 Volatility")
         market_cap_data: Dictionary containing market cap data for tokens (mint_address -> market_cap_usd)
+        price_data: Dictionary containing oldest/latest price data for accurate ROI calculation
         
     Returns:
         Dictionary containing risk and return metrics
@@ -592,7 +925,7 @@ def process_bitquery_data(bitquery_response: Dict, index_name: str = "Memecoin 5
     analyzer.load_bitquery_data(bitquery_response, market_cap_data)
     
     # Generate profile for the data
-    profile = analyzer.generate_risk_return_profile(index_name)
+    profile = analyzer.generate_risk_return_profile(index_name, price_data)
     
     return profile
 
