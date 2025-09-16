@@ -111,20 +111,6 @@ def fetch_memecoin_data_by_volume():
     print(f"Fetching volume data from {start_str} to {end_str}")
     return fetch_memecoin_data_by_period(start_str, end_str, "volume")
 
-def fetch_memecoin_data_by_volume_run2():
-    """
-    Fetch memecoin data from Bitquery API ordered by volume for Run 2.
-    Hardcoded date range: 2024-09-01 to 2025-03-30
-    
-    Returns:
-        Dictionary containing the API response data
-    """
-    start_str = "2024-09-01"
-    end_str = "2025-03-30"
-    
-    print(f"Fetching volume data for Run 2 from {start_str} to {end_str}")
-    return fetch_memecoin_data_by_period(start_str, end_str, "volume")
-
 def fetch_memecoin_data_by_volatility():
     """
     Fetch memecoin data from Bitquery API ordered by volatility for the last 6 months.
@@ -323,18 +309,32 @@ def fetch_token_supply_data(token_addresses):
         print(response.text)
         return {}
 
-def fetch_memecoin_data():
+def fetch_memecoin_data(start_date=None, end_date=None):
     """
     Fetch both volume-ordered and volatility-ordered memecoin data, plus market cap data.
     
+    Args:
+        start_date: Start date in YYYY-MM-DD format (optional, defaults to 6 months ago)
+        end_date: End date in YYYY-MM-DD format (optional, defaults to today)
+    
     Returns:
-        Dictionary containing both datasets and market cap data
+        Dictionary containing both datasets, market cap data, and ROI price data
     """
+    # Set default date range if not provided
+    if start_date is None or end_date is None:
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=180)  # 6 months
+        start_date = start_date.strftime("%Y-%m-%d")
+        end_date = end_date.strftime("%Y-%m-%d")
+    
+    print(f"Fetching memecoin data from {start_date} to {end_date}...")
+    
     print("Fetching volume-ordered data...")
-    volume_data = fetch_memecoin_data_by_volume()
+    volume_data = fetch_memecoin_data_by_period(start_date, end_date, "volume")
     
     print("Fetching volatility-ordered data...")
-    volatility_data = fetch_memecoin_data_by_volatility()
+    volatility_data = fetch_memecoin_data_by_period(start_date, end_date, "volatility_token")
     
     if volume_data is None or volatility_data is None:
         return None
@@ -355,10 +355,16 @@ def fetch_memecoin_data():
     print(f"Fetching market cap data for {len(token_addresses)} tokens...")
     market_cap_data = fetch_token_supply_data(list(token_addresses))
     
+    # Fetch ROI price data using the same date range
+    print(f"Fetching ROI price data from {start_date} to {end_date}...")
+    roi_price_data = fetch_token_oldest_latest_prices(list(token_addresses), start_date, end_date)
+    print(f"Retrieved ROI price data for {len(roi_price_data)} tokens")
+    
     return {
         'volume_ordered': volume_data,
         'volatility_ordered': volatility_data,
-        'market_cap_data': market_cap_data
+        'market_cap_data': market_cap_data,
+        'roi_price_data': roi_price_data
     }
 
 def fetch_token_oldest_latest_prices(token_addresses, start_date, end_date):
@@ -521,43 +527,5 @@ def fetch_token_oldest_latest_prices(token_addresses, start_date, end_date):
         print(response.text)
         return {}
 
-def fetch_memecoin_data_run2():
-    """
-    Fetch both volume-ordered and volatility-ordered memecoin data for Run 2.
-    Hardcoded date range: 2024-09-01 to 2025-03-30
-    
-    Returns:
-        Dictionary containing both datasets and market cap data
-    """
-    print("Fetching volume-ordered data for Run 2...")
-    volume_data = fetch_memecoin_data_by_volume_run2()
-    
-    print("Fetching volatility-ordered data for Run 2...")
-    volatility_data = fetch_memecoin_data_by_volatility_run2()
-    
-    if volume_data is None or volatility_data is None:
-        return None
-    
-    # Extract token addresses from both datasets
-    token_addresses = set()
-    
-    if 'data' in volume_data and 'Solana' in volume_data['data']:
-        for token in volume_data['data']['Solana']['DEXTradeByTokens']:
-            mint_address = token['Trade']['Currency']['MintAddress']
-            token_addresses.add(mint_address)
-    
-    if 'data' in volatility_data and 'Solana' in volatility_data['data']:
-        for token in volatility_data['data']['Solana']['DEXTradeByTokens']:
-            mint_address = token['Trade']['Currency']['MintAddress']
-            token_addresses.add(mint_address)
-    
-    print(f"Fetching market cap data for {len(token_addresses)} tokens...")
-    market_cap_data = fetch_token_supply_data(list(token_addresses))
-    
-    return {
-        'volume_ordered': volume_data,
-        'volatility_ordered': volatility_data,
-        'market_cap_data': market_cap_data
-    }
 
 
