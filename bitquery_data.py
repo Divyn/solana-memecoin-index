@@ -93,12 +93,14 @@ def fetch_memecoin_data_by_period(start_date, end_date, order_by="volume"):
         return None
 
 def fetch_memecoin_data_by_volume():
+
     """
     Fetch memecoin data from Bitquery API ordered by volume for the last 6 months.
     
     Returns:
         Dictionary containing the API response data
     """
+                                                           
     from datetime import datetime, timedelta
     
     # Get data for the last 6 months
@@ -112,6 +114,7 @@ def fetch_memecoin_data_by_volume():
     return fetch_memecoin_data_by_period(start_str, end_str, "volume")
 
 def fetch_memecoin_data_by_volume_run2():
+
     """
     Fetch memecoin data from Bitquery API ordered by volume for Run 2.
     Hardcoded date range: 2024-09-01 to 2025-03-30
@@ -119,11 +122,13 @@ def fetch_memecoin_data_by_volume_run2():
     Returns:
         Dictionary containing the API response data
     """
+                                                           
     start_str = "2024-09-01"
     end_str = "2025-03-30"
     
     print(f"Fetching volume data for Run 2 from {start_str} to {end_str}")
     return fetch_memecoin_data_by_period(start_str, end_str, "volume")
+
 
 def fetch_memecoin_data_by_volatility():
     """
