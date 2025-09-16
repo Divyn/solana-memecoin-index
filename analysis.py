@@ -4,6 +4,7 @@ Handles all risk calculations and analysis logic.
 """
 
 from calculations import process_bitquery_data
+from bitquery_data import fetch_token_oldest_latest_prices
 
 def analyze_memecoin_risk(data):
     """
@@ -25,17 +26,28 @@ def analyze_memecoin_risk(data):
     volume_data = data['volume_ordered']
     market_cap_data = data.get('market_cap_data', {})
     
+    # Extract token addresses for ROI price fetching
+    token_addresses = set()
     if volume_data and 'data' in volume_data and volume_data['data'] is not None:
         if 'Solana' in volume_data['data']:
             volume_tokens = volume_data['data']['Solana']['DEXTradeByTokens']
             print(f"Found {len(volume_tokens)} tokens in volume-ordered data")
-            volume_profile = process_bitquery_data(volume_data['data'], "Memecoin 50 Volume", market_cap_data)
+            for token in volume_tokens:
+                token_addresses.add(token['Trade']['Currency']['MintAddress'])
         else:
             print("No 'Solana' key found in volume data")
             return None
     else:
         print("Unexpected volume data structure or data is None")
         return None
+    
+    # Fetch accurate price data for ROI calculation
+    print("Fetching accurate price data for ROI calculation...")
+    price_data = fetch_token_oldest_latest_prices(list(token_addresses), "2024-07-01", "2024-08-01")
+    print(f"Retrieved price data for {len(price_data)} tokens")
+    
+    # Process volume data with accurate price data
+    volume_profile = process_bitquery_data(volume_data['data'], "Memecoin 50 Volume", market_cap_data, price_data)
     
     # Process volatility-ordered data (Memecoin 50 Volatility Index)
     print("\n" + "="*80)
@@ -44,17 +56,27 @@ def analyze_memecoin_risk(data):
     
     volatility_data = data['volatility_ordered']
     
+    # Add volatility tokens to the address set
     if volatility_data and 'data' in volatility_data and volatility_data['data'] is not None:
         if 'Solana' in volatility_data['data']:
             volatility_tokens = volatility_data['data']['Solana']['DEXTradeByTokens']
             print(f"Found {len(volatility_tokens)} tokens in volatility-ordered data")
-            volatility_profile = process_bitquery_data(volatility_data['data'], "Memecoin 50 Volatility", market_cap_data)
+            for token in volatility_tokens:
+                token_addresses.add(token['Trade']['Currency']['MintAddress'])
         else:
             print("No 'Solana' key found in volatility data")
             return None
     else:
         print("Unexpected volatility data structure or data is None")
         return None
+    
+    # Re-fetch price data with all tokens (volume + volatility)
+    print("Re-fetching price data with all tokens...")
+    price_data = fetch_token_oldest_latest_prices(list(token_addresses), "2024-07-01", "2024-08-01")
+    print(f"Retrieved price data for {len(price_data)} tokens")
+    
+    # Process volatility data with accurate price data
+    volatility_profile = process_bitquery_data(volatility_data['data'], "Memecoin 50 Volatility", market_cap_data, price_data)
     
     return {
         'volume_index': volume_profile,
