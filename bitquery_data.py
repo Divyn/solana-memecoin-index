@@ -93,14 +93,12 @@ def fetch_memecoin_data_by_period(start_date, end_date, order_by="volume"):
         return None
 
 def fetch_memecoin_data_by_volume():
-
     """
     Fetch memecoin data from Bitquery API ordered by volume for the last 6 months.
     
     Returns:
         Dictionary containing the API response data
     """
-                                                           
     from datetime import datetime, timedelta
     
     # Get data for the last 6 months
@@ -114,7 +112,6 @@ def fetch_memecoin_data_by_volume():
     return fetch_memecoin_data_by_period(start_str, end_str, "volume")
 
 def fetch_memecoin_data_by_volume_run2():
-
     """
     Fetch memecoin data from Bitquery API ordered by volume for Run 2.
     Hardcoded date range: 2024-09-01 to 2025-03-30
@@ -122,13 +119,11 @@ def fetch_memecoin_data_by_volume_run2():
     Returns:
         Dictionary containing the API response data
     """
-                                                           
     start_str = "2024-09-01"
     end_str = "2025-03-30"
     
     print(f"Fetching volume data for Run 2 from {start_str} to {end_str}")
     return fetch_memecoin_data_by_period(start_str, end_str, "volume")
-
 
 def fetch_memecoin_data_by_volatility():
     """
@@ -366,6 +361,166 @@ def fetch_memecoin_data():
         'market_cap_data': market_cap_data
     }
 
+def fetch_token_oldest_latest_prices(token_addresses, start_date, end_date):
+    """
+    Fetch oldest and latest prices for a list of token addresses within a date range.
+    
+    Args:
+        token_addresses: List of token mint addresses
+        start_date: Start date in YYYY-MM-DD format
+        end_date: End date in YYYY-MM-DD format
+        
+    Returns:
+        Dictionary containing price data for each token
+        Format: {mint_address: {'oldest_price': float, 'latest_price': float, 'symbol': str, 'name': str}}
+    """
+    if not token_addresses:
+        return {}
+    
+    url = "https://streaming.bitquery.io/eap"
+    
+    # Create the query for oldest and latest prices using the exact structure provided
+    token_addresses_str = '["' + '", "'.join(token_addresses) + '"]'
+    
+    query = f"""{{
+  Solana(dataset: archive) {{
+    DEXTradeByTokens(
+      limit: {{count: 1000}}
+      where: {{
+        Trade: {{
+          Currency: {{
+            MintAddress: {{
+              in: {token_addresses_str}
+            }},
+            Name: {{
+              not: ""
+            }}
+          }},
+          PriceAsymmetry: {{
+            lt: 0.1
+          }},
+          Side: {{
+            Currency: {{
+              MintAddress: {{
+                in: ["So11111111111111111111111111111111111111112", "So11111111111111111111111111111111111111111"]
+              }}
+            }}
+          }}
+        }},
+        Block: {{
+          Date: {{
+            since: "{start_date}",
+            till: "{end_date}"
+          }}
+        }}
+      }}
+      limitBy: {{
+        by: Trade_Currency_MintAddress,
+        count: 1
+      }}
+    ) {{
+      Trade {{
+        oldest_price: Price(minimum: Block_Time)
+        latest_price: Price(maximum: Block_Time)
+        Currency {{
+          Name
+          MintAddress
+          Symbol
+        }}
+        Side {{
+          Currency {{
+            Name
+            MintAddress
+            Symbol
+          }}
+        }}
+      }}
+    }}
+  }}
+}}"""
+    
+    payload = json.dumps({
+        "query": query,
+        "variables": "{}"
+    })
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + AUTH_TOKEN
+    }
+    
+    response = requests.request("POST", url, headers=headers, data=payload)
+    
+    if response.status_code == 200:
+        data = response.json()
+        
+        # Debug: Print response structure
+        print(f"Response keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
+        if 'data' in data and data['data']:
+            print(f"Data keys: {list(data['data'].keys()) if isinstance(data['data'], dict) else 'Not a dict'}")
+            if 'Solana' in data['data'] and data['data']['Solana']:
+                print(f"Solana keys: {list(data['data']['Solana'].keys()) if isinstance(data['data']['Solana'], dict) else 'Not a dict'}")
+                if 'DEXTradeByTokens' in data['data']['Solana']:
+                    print(f"Found {len(data['data']['Solana']['DEXTradeByTokens'])} DEXTradeByTokens")
+        
+        # Process the data to create price mapping
+        price_data = {}
+        
+        if data and 'data' in data and data['data'] and 'Solana' in data['data'] and 'DEXTradeByTokens' in data['data']['Solana']:
+            for i, token in enumerate(data['data']['Solana']['DEXTradeByTokens']):
+                print(f"Processing token {i+1}: {list(token.keys())}")
+                
+                if 'Trade' in token and token['Trade']:
+                    trade_data = token['Trade']
+                    print(f"Trade data keys: {list(trade_data.keys())}")
+                    
+                    if 'Currency' in trade_data and trade_data['Currency']:
+                        mint_address = trade_data['Currency']['MintAddress']
+                        print(f"Token {i+1} - MintAddress: {mint_address}")
+                        print(f"Token {i+1} - oldest_price (raw): {trade_data.get('oldest_price', 'NOT_FOUND')}")
+                        print(f"Token {i+1} - latest_price (raw): {trade_data.get('latest_price', 'NOT_FOUND')}")
+                        
+                        # Convert to float and handle scientific notation
+                        oldest_price_raw = trade_data.get('oldest_price', 0)
+                        latest_price_raw = trade_data.get('latest_price', 0)
+                        
+                        # Scale up prices by 1e18 to work with larger numbers for calculations
+                        scale_factor = 1e18
+                        
+                        if oldest_price_raw != 0:
+                            oldest_price_float = float(oldest_price_raw) * scale_factor
+                            print(f"Token {i+1} - oldest_price (raw): {oldest_price_raw}")
+                            print(f"Token {i+1} - oldest_price (scaled): {oldest_price_float:.10f}")
+                        else:
+                            oldest_price_float = 0.0
+                            print(f"Token {i+1} - oldest_price (scaled): 0.0000000000")
+                            
+                        if latest_price_raw != 0:
+                            latest_price_float = float(latest_price_raw) * scale_factor
+                            print(f"Token {i+1} - latest_price (raw): {latest_price_raw}")
+                            print(f"Token {i+1} - latest_price (scaled): {latest_price_float:.10f}")
+                        else:
+                            latest_price_float = 0.0
+                            print(f"Token {i+1} - latest_price (scaled): 0.0000000000")
+                        
+                        price_data[mint_address] = {
+                            'oldest_price': oldest_price_float,
+                            'latest_price': latest_price_float,
+                            'symbol': trade_data['Currency']['Symbol'],
+                            'name': trade_data['Currency']['Name']
+                        }
+                    else:
+                        print(f"Token {i+1} - No Currency data found")
+                else:
+                    print(f"Token {i+1} - No Trade data found")
+        
+        print(f"Processed {len(price_data)} tokens with price data")
+        return price_data
+    else:
+        print(f"Error fetching price data: {response.status_code}")
+        print(response.text)
+        return {}
+
 def fetch_memecoin_data_run2():
     """
     Fetch both volume-ordered and volatility-ordered memecoin data for Run 2.
@@ -406,15 +561,3 @@ def fetch_memecoin_data_run2():
     }
 
 
-if __name__ == "__main__":
-    # Test the new batch data fetching
-    print("Testing batch data fetching with 6-month periods...")
-    data = fetch_memecoin_data()
-    
-    if data:
-        print("Data fetched successfully!")
-        print(f"Volume data keys: {list(data['volume_ordered'].keys())}")
-        print(f"Volatility data keys: {list(data['volatility_ordered'].keys())}")
-        print(f"Market cap data for {len(data['market_cap_data'])} tokens")
-    else:
-        print("Failed to fetch data.")
