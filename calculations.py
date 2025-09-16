@@ -409,7 +409,6 @@ class MemeCoinRiskAnalyzer:
         
         # Calculate meaningful index metrics
         constituent_stability = self.calculate_constituent_stability()
-        liquidity_coverage = self.calculate_liquidity_coverage()
         weight_concentration = self.calculate_weight_concentration()
         
         # Use the volatility data from Bitquery as base, then calculate for different periods
@@ -517,7 +516,6 @@ class MemeCoinRiskAnalyzer:
         profile = {
             "index": index_name,
             "constituent_stability": round(constituent_stability, 2),
-            "liquidity_coverage": round(liquidity_coverage, 2),
             "weight_concentration": round(weight_concentration, 2),
             "volatilities": {
                 "2w": round(volatilities["2w"], 2),
